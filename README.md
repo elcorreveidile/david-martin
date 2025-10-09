@@ -2,36 +2,51 @@
 
 Este repositorio contiene la documentación técnica inicial y una primera implementación funcional para el sistema integral de reservas inteligentes, chatbot IA y automatización multicanal para David Martin Barber Shop.
 
-## API de reservas y chatbot
+## Núcleo de reservas y chatbot
 
-La carpeta `app/` incluye una API desarrollada con **FastAPI** y SQLite que permite:
+La carpeta `app/` contiene la lógica de negocio del planificador implementada en Python puro y SQLite (sin dependencias externas). El objeto `BookingSystem` expone métodos sencillos para:
 
-- Consultar servicios disponibles (`GET /services`).
-- Ver huecos libres por servicio y fecha (`GET /availability`).
-- Crear nuevas reservas con validación de solapes (`POST /bookings`).
-- Obtener el histórico de reservas (`GET /bookings`).
-- Interactuar con un chatbot básico entrenado con reglas sobre precios, horarios y reseñas (`POST /chat`).
+- Consultar los servicios y tarifas configurados.
+- Calcular huecos libres por servicio y fecha con pasos de 15 minutos.
+- Crear reservas nuevas evitando solapes.
+- Recuperar reservas existentes para integrarlas con otros canales.
+- Obtener respuestas automáticas del chatbot basado en reglas y datos reales del negocio.
+
+Esta base te permite empezar a programar desde el primer momento: puedes conectar la clase `BookingSystem` a una API, a un bot de WhatsApp o a una interfaz web según avances en el proyecto.
 
 ### Requisitos
 
-Instala las dependencias con:
+Solo necesitas Python 3.11+ y `pytest` para ejecutar las pruebas automatizadas:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Ejecutar la API localmente
-
-```bash
-uvicorn app.main:app --reload
-```
-
-La documentación interactiva estará disponible en `http://127.0.0.1:8000/docs`.
-
 ### Ejecutar las pruebas
 
 ```bash
 pytest
+```
+
+### Ejemplo rápido en consola
+
+```python
+from datetime import datetime, timedelta
+
+from app.main import BookingSystem
+
+system = BookingSystem()
+service = system.list_services()[0]
+start = datetime.now().replace(hour=17, minute=0, second=0, microsecond=0) + timedelta(days=1)
+booking = system.create_booking(
+    customer_name="Cliente demo",
+    customer_email="demo@example.com",
+    customer_phone="600123123",
+    service_id=service.id,
+    start_time=start,
+)
+print(booking)
+print(system.chat("¿Cuánto cuesta un degradado?"))
 ```
 
 ## Documentación

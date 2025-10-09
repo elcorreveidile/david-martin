@@ -1,179 +1,276 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
-from typing import List
-
-from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy.orm import Session
+from pathlib import Path
+from typing import List, Optional
 
 from .chatbot import generate_response
-from .database import SessionLocal, engine, get_session
-from .models import Base, Booking, BusinessHour, Service
-from .schemas import (
-    AvailabilityResponse,
-    Booking as BookingSchema,
-    BookingCreate,
-    ChatRequest,
-    ChatResponse,
-    Service as ServiceSchema,
-)
+from .database import get_connection, set_db_path
+from .models import Booking, BusinessHour, Service
 
-app = FastAPI(title="David Martin Barber Shop Booking API")
+SERVICE_SEED = [
+    ("Corte clásico", "Corte de pelo tradicional con acabado profesional.", 30, 18.0),
+    ("Degradado", "Fade completo y definición de contornos.", 40, 22.0),
+    ("Arreglo de barba", "Perfilado y cuidado de barba con toalla caliente.", 25, 15.0),
+    ("Pack corte + barba", "Servicio combinado de corte y barba.", 60, 32.0),
+]
+
+BUSINESS_HOUR_SEED = [
+    (0, time(10, 0), time(20, 0)),
+    (1, time(10, 0), time(20, 0)),
+    (2, time(10, 0), time(20, 0)),
+    (3, time(10, 0), time(20, 0)),
+    (4, time(10, 0), time(20, 0)),
+    (5, time(9, 0), time(14, 0)),
+]
 
 
-def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
-    with get_session() as session:
-        if not session.query(Service).count():
-            session.add_all(
-                [
-                    Service(
-                        name="Corte clásico",
-                        description="Corte de pelo tradicional con acabado profesional.",
-                        duration_minutes=30,
-                        price_eur=18.0,
-                    ),
-                    Service(
-                        name="Degradado",
-                        description="Fade completo y definición de contornos.",
-                        duration_minutes=40,
-                        price_eur=22.0,
-                    ),
-                    Service(
-                        name="Arreglo de barba",
-                        description="Perfilado y cuidado de barba con toalla caliente.",
-                        duration_minutes=25,
-                        price_eur=15.0,
-                    ),
-                    Service(
-                        name="Pack corte + barba",
-                        description="Servicio combinado de corte y barba.",
-                        duration_minutes=60,
-                        price_eur=32.0,
-                    ),
-                ]
+class BookingSystem:
+    """Core business logic for the barber shop booking workflow."""
+
+    def __init__(self, db_path: Optional[Path] = None) -> None:
+        if db_path is not None:
+            set_db_path(db_path)
+        self._initialize()
+
+    def _initialize(self) -> None:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS services (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    duration_minutes INTEGER NOT NULL,
+                    price_eur REAL NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS business_hours (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    weekday INTEGER NOT NULL,
+                    open_time TEXT NOT NULL,
+                    close_time TEXT NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS bookings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    customer_name TEXT NOT NULL,
+                    customer_email TEXT,
+                    customer_phone TEXT,
+                    service_id INTEGER NOT NULL,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    notes TEXT,
+                    FOREIGN KEY(service_id) REFERENCES services(id)
+                )
+                """
             )
 
-        if not session.query(BusinessHour).count():
-            session.add_all(
-                [
-                    BusinessHour(weekday=0, open_time=time(10, 0), close_time=time(20, 0)),
-                    BusinessHour(weekday=1, open_time=time(10, 0), close_time=time(20, 0)),
-                    BusinessHour(weekday=2, open_time=time(10, 0), close_time=time(20, 0)),
-                    BusinessHour(weekday=3, open_time=time(10, 0), close_time=time(20, 0)),
-                    BusinessHour(weekday=4, open_time=time(10, 0), close_time=time(20, 0)),
-                    BusinessHour(weekday=5, open_time=time(9, 0), close_time=time(14, 0)),
-                ]
+            cursor.execute("SELECT COUNT(*) FROM services")
+            if cursor.fetchone()[0] == 0:
+                cursor.executemany(
+                    "INSERT INTO services (name, description, duration_minutes, price_eur) VALUES (?, ?, ?, ?)",
+                    SERVICE_SEED,
+                )
+
+            cursor.execute("SELECT COUNT(*) FROM business_hours")
+            if cursor.fetchone()[0] == 0:
+                cursor.executemany(
+                    "INSERT INTO business_hours (weekday, open_time, close_time) VALUES (?, ?, ?)",
+                    [
+                        (
+                            weekday,
+                            open.strftime("%H:%M"),
+                            close.strftime("%H:%M"),
+                        )
+                        for weekday, open, close in BUSINESS_HOUR_SEED
+                    ],
+                )
+
+    # ------------------------------------------------------------------
+    # Helpers to hydrate dataclasses
+    # ------------------------------------------------------------------
+    def _row_to_service(self, row) -> Service:
+        return Service(
+            id=row["id"],
+            name=row["name"],
+            description=row["description"],
+            duration_minutes=row["duration_minutes"],
+            price_eur=row["price_eur"],
+        )
+
+    def _row_to_business_hour(self, row) -> BusinessHour:
+        open_time = datetime.strptime(row["open_time"], "%H:%M").time()
+        close_time = datetime.strptime(row["close_time"], "%H:%M").time()
+        return BusinessHour(
+            id=row["id"],
+            weekday=row["weekday"],
+            open_time=open_time,
+            close_time=close_time,
+        )
+
+    def _row_to_booking(self, row) -> Booking:
+        return Booking(
+            id=row["id"],
+            customer_name=row["customer_name"],
+            customer_email=row["customer_email"],
+            customer_phone=row["customer_phone"],
+            service_id=row["service_id"],
+            start_time=datetime.fromisoformat(row["start_time"]),
+            end_time=datetime.fromisoformat(row["end_time"]),
+            status=row["status"],
+            notes=row["notes"],
+        )
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def list_services(self) -> List[Service]:
+        with get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM services ORDER BY id")
+            return [self._row_to_service(row) for row in cursor.fetchall()]
+
+    def list_business_hours(self) -> List[BusinessHour]:
+        with get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM business_hours ORDER BY weekday")
+            return [self._row_to_business_hour(row) for row in cursor.fetchall()]
+
+    def _get_service(self, service_id: int) -> Optional[Service]:
+        with get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM services WHERE id = ?", (service_id,))
+            row = cursor.fetchone()
+            return self._row_to_service(row) if row else None
+
+    def check_availability(self, service_id: int, target_date: date) -> List[datetime]:
+        service = self._get_service(service_id)
+        if service is None:
+            raise ValueError("Servicio no encontrado")
+
+        weekday = target_date.weekday()
+        with get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM business_hours WHERE weekday = ?", (weekday,)
             )
+            row = cursor.fetchone()
+            if row is None:
+                return []
+            business_hour = self._row_to_business_hour(row)
 
-        session.commit()
+            start_datetime = datetime.combine(target_date, business_hour.open_time)
+            end_datetime = datetime.combine(target_date, business_hour.close_time)
+            slot_length = timedelta(minutes=service.duration_minutes)
 
+            bookings = [
+                self._row_to_booking(r)
+                for r in conn.execute(
+                    """
+                    SELECT * FROM bookings
+                    WHERE service_id = ? AND start_time >= ? AND start_time < ?
+                    ORDER BY start_time
+                    """,
+                    (
+                        service_id,
+                        start_datetime.isoformat(),
+                        end_datetime.isoformat(),
+                    ),
+                ).fetchall()
+            ]
 
-@app.on_event("startup")
-def on_startup() -> None:
-    init_db()
+        slots: List[datetime] = []
+        current = start_datetime
+        while current + slot_length <= end_datetime:
+            current_end = current + slot_length
+            overlaps = any(booking.overlaps(current, current_end) for booking in bookings)
+            if not overlaps:
+                slots.append(current)
+            current += timedelta(minutes=15)
+        return slots
 
+    def create_booking(
+        self,
+        *,
+        customer_name: str,
+        customer_email: Optional[str],
+        customer_phone: Optional[str],
+        service_id: int,
+        start_time: datetime,
+        notes: Optional[str] = None,
+    ) -> Booking:
+        service = self._get_service(service_id)
+        if service is None:
+            raise ValueError("Servicio no encontrado")
 
-def get_db() -> Session:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+        end_time = start_time + timedelta(minutes=service.duration_minutes)
+        normalized_phone = self._normalize_phone(customer_phone)
 
+        with get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT * FROM bookings
+                WHERE service_id = ?
+                  AND start_time < ?
+                  AND end_time > ?
+                LIMIT 1
+                """,
+                (
+                    service_id,
+                    end_time.isoformat(),
+                    start_time.isoformat(),
+                ),
+            )
+            if cursor.fetchone():
+                raise ValueError("El horario seleccionado no está disponible")
 
-@app.get("/services", response_model=List[ServiceSchema])
-def list_services(db: Session = Depends(get_db)) -> List[Service]:
-    return db.query(Service).order_by(Service.id).all()
+            cursor = conn.execute(
+                """
+                INSERT INTO bookings (
+                    customer_name, customer_email, customer_phone, service_id,
+                    start_time, end_time, status, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    customer_name,
+                    customer_email,
+                    normalized_phone,
+                    service_id,
+                    start_time.isoformat(),
+                    end_time.isoformat(),
+                    "confirmed",
+                    notes,
+                ),
+            )
+            booking_id = cursor.lastrowid
+            conn.commit()
 
+            cursor = conn.execute("SELECT * FROM bookings WHERE id = ?", (booking_id,))
+            row = cursor.fetchone()
+            return self._row_to_booking(row)
 
-@app.get("/availability", response_model=AvailabilityResponse)
-def check_availability(
-    service_id: int,
-    target_date: date,
-    db: Session = Depends(get_db),
-) -> AvailabilityResponse:
-    service = db.query(Service).get(service_id)
-    if not service:
-        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    def list_bookings(self) -> List[Booking]:
+        with get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM bookings ORDER BY start_time")
+            return [self._row_to_booking(row) for row in cursor.fetchall()]
 
-    weekday = target_date.weekday()
-    business_hour = db.query(BusinessHour).filter_by(weekday=weekday).first()
-    if not business_hour:
-        return AvailabilityResponse(
-            service_id=service_id, date=target_date, available_slots=[]
-        )
+    def chat(self, message: str) -> str:
+        services = self.list_services()
+        hours = self.list_business_hours()
+        return generate_response(message, services, hours)
 
-    start_datetime = datetime.combine(target_date, business_hour.open_time)
-    end_datetime = datetime.combine(target_date, business_hour.close_time)
-    slot_length = timedelta(minutes=service.duration_minutes)
+    def clear_bookings(self) -> None:
+        with get_connection() as conn:
+            conn.execute("DELETE FROM bookings")
 
-    existing_bookings = (
-        db.query(Booking)
-        .filter(
-            Booking.service_id == service_id,
-            Booking.start_time >= start_datetime,
-            Booking.start_time < end_datetime,
-        )
-        .all()
-    )
-
-    slots: List[datetime] = []
-    current = start_datetime
-    while current + slot_length <= end_datetime:
-        current_end = current + slot_length
-        overlaps = any(booking.overlaps(current, current_end) for booking in existing_bookings)
-        if not overlaps:
-            slots.append(current)
-        current += timedelta(minutes=15)
-
-    return AvailabilityResponse(
-        service_id=service_id, date=target_date, available_slots=slots
-    )
-
-
-@app.post("/bookings", response_model=BookingSchema, status_code=201)
-def create_booking(booking: BookingCreate, db: Session = Depends(get_db)) -> Booking:
-    service = db.query(Service).get(booking.service_id)
-    if not service:
-        raise HTTPException(status_code=404, detail="Servicio no encontrado")
-
-    end_time = booking.start_time + timedelta(minutes=service.duration_minutes)
-
-    overlapping = (
-        db.query(Booking)
-        .filter(
-            Booking.service_id == booking.service_id,
-            Booking.start_time < end_time,
-            Booking.end_time > booking.start_time,
-        )
-        .first()
-    )
-    if overlapping:
-        raise HTTPException(status_code=409, detail="El horario seleccionado no está disponible")
-
-    new_booking = Booking(
-        customer_name=booking.customer_name,
-        customer_email=booking.customer_email,
-        customer_phone=booking.customer_phone,
-        service_id=booking.service_id,
-        start_time=booking.start_time,
-        end_time=end_time,
-        status="confirmed",
-        notes=booking.notes,
-    )
-    db.add(new_booking)
-    db.commit()
-    db.refresh(new_booking)
-    return new_booking
-
-
-@app.get("/bookings", response_model=List[BookingSchema])
-def list_bookings(db: Session = Depends(get_db)) -> List[Booking]:
-    return db.query(Booking).order_by(Booking.start_time).all()
-
-
-@app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
-    reply = generate_response(request.message, db)
-    return ChatResponse(response=reply)
+    @staticmethod
+    def _normalize_phone(phone: Optional[str]) -> Optional[str]:
+        if phone is None:
+            return None
+        digits = "".join(ch for ch in phone if ch.isdigit())
+        return digits or phone
