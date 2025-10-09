@@ -1,0 +1,202 @@
++<!DOCTYPE html>
+      2 +<html lang="es">
+      3 +  <head>
+      4 +    <meta charset="utf-8" />
+      5 +    <title>Panorama del Repositorio David Martin</title>
+      6 +    <meta name="viewport" content="width=device-width, initial-scale=1"
+          />
+      7 +    <style>
+      8 +      :root {
+      9 +        color-scheme: light dark;
+     10 +        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+     11 +        font-size: 16px;
+     12 +        line-height: 1.5;
+     13 +        background-color: #f8f9fb;
+     14 +        color: #1f2933;
+     15 +      }
+     16 +      body {
+     17 +        margin: 0;
+     18 +        padding: 0;
+     19 +        display: flex;
+     20 +        justify-content: center;
+     21 +      }
+     22 +      main {
+     23 +        max-width: 900px;
+     24 +        padding: 3rem 1.5rem 4rem;
+     25 +      }
+     26 +      header {
+     27 +        text-align: center;
+     28 +        margin-bottom: 2.5rem;
+     29 +      }
+     30 +      h1 {
+     31 +        font-size: 2.25rem;
+     32 +        margin-bottom: 0.5rem;
+     33 +      }
+     34 +      h2 {
+     35 +        margin-top: 2rem;
+     36 +        margin-bottom: 0.75rem;
+     37 +        font-size: 1.5rem;
+     38 +      }
+     39 +      h3 {
+     40 +        margin-top: 1.5rem;
+     41 +        margin-bottom: 0.5rem;
+     42 +        font-size: 1.2rem;
+     43 +      }
+     44 +      p,
+     45 +      li {
+     46 +        max-width: 70ch;
+     47 +      }
+     48 +      section + section {
+     49 +        border-top: 1px solid rgba(15, 23, 42, 0.08);
+     50 +        padding-top: 2rem;
+     51 +      }
+     52 +      ul {
+     53 +        padding-left: 1.25rem;
+     54 +      }
+     55 +      code {
+     56 +        font-family: "JetBrains Mono", "Fira Code", monospace;
+     57 +        background-color: rgba(15, 23, 42, 0.06);
+     58 +        padding: 0.15rem 0.35rem;
+     59 +        border-radius: 4px;
+     60 +      }
+     61 +      a {
+     62 +        color: #2563eb;
+     63 +        text-decoration: none;
+     64 +      }
+     65 +      a:hover,
+     66 +      a:focus {
+     67 +        text-decoration: underline;
+     68 +      }
+     69 +      footer {
+     70 +        margin-top: 3rem;
+     71 +        text-align: center;
+     72 +        font-size: 0.95rem;
+     73 +        color: rgba(15, 23, 42, 0.7);
+     74 +      }
+     75 +      .grid {
+     76 +        display: grid;
+     77 +        gap: 1.5rem;
+     78 +      }
+     79 +      .card {
+     80 +        background: rgba(255, 255, 255, 0.85);
+     81 +        border-radius: 12px;
+     82 +        padding: 1.5rem;
+     83 +        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+     84 +      }
+     85 +      .card h3 {
+     86 +        margin-top: 0;
+     87 +      }
+     88 +      @media (max-width: 640px) {
+     89 +        main {
+     90 +          padding: 2rem 1rem 3rem;
+     91 +        }
+     92 +        h1 {
+     93 +          font-size: 1.9rem;
+     94 +        }
+     95 +        h2 {
+     96 +          font-size: 1.35rem;
+     97 +        }
+     98 +      }
+     99 +    </style>
+    100 +  </head>
+    101 +  <body>
+    102 +    <main>
+    103 +      <header>
+    104 +        <h1>Panorama del Repositorio</h1>
+    105 +        <p>
+    106 +          Esta página resume los lineamientos documentados hasta ahora
+         en
+    107 +          <a href="./README.md">README.md</a> y <a href="./AGENTS.md">A
+         GENTS.md</a>.
+    108 +          Úsala como referencia rápida mientras el proyecto evoluciona.
+    109 +        </p>
+    110 +      </header>
+    111 +
+    112 +      <section>
+    113 +        <h2>Estado Actual</h2>
+    114 +        <div class="grid">
+    115 +          <article class="card">
+    116 +            <h3>Estructura Propuesta</h3>
+    117 +            <p>
+    118 +              Se definieron directorios base para código (`src/`), prue
+         bas (`tests/`),
+    119 +              recursos (`assets/`) y automatizaciones (`scripts/`). Aún
+          no se han creado,
+    120 +              pero la convención está lista para cuando se incorporen m
+         ódulos.
+    121 +            </p>
+    122 +          </article>
+    123 +          <article class="card">
+    124 +            <h3>Guías de Contribución</h3>
+    125 +            <p>
+    126 +              Los documentos destacan el uso de un `Makefile` como inte
+         rfaz única,
+    127 +              convenciones de estilo con formatos en snake_case/PascalC
+         ase y el objetivo
+    128 +              de ≥80 % de cobertura en las pruebas.
+    129 +            </p>
+    130 +          </article>
+    131 +          <article class="card">
+    132 +            <h3>Flujo de Revisión</h3>
+    133 +            <p>
+    134 +              Se establecieron commits en modo imperativo, referencia d
+         e issues con
+    135 +              <code>Fixes #N</code> y PRs con resumen, checklist de val
+         idación y evidencia
+    136 +              relevante.
+    137 +            </p>
+    138 +          </article>
+    139 +        </div>
+    140 +      </section>
+    141 +
+    142 +      <section>
+    143 +        <h2>Acciones Recomendadas</h2>
+    144 +        <ul>
+    145 +          <li>Inicializar la estructura base creando las carpetas <code
+         >src/</code> y <code>tests/</code>.</li>
+    146 +          <li>Configurar un <code>Makefile</code> que exponga <code>mak
+         e install</code>, <code>make fmt</code>, <code>make lint</code> y <code
+         >make test</code>.</li>
+    147 +          <li>Elegir y documentar las herramientas de formateo y lint p
+         ara el lenguaje principal.</li>
+    148 +          <li>Incorporar la primera funcionalidad con su batería de pru
+         ebas correspondiente.</li>
+    149 +        </ul>
+    150 +      </section>
+    151 +
+    152 +      <section>
+    153 +        <h2>Referencias Rápidas</h2>
+    154 +        <div class="grid">
+    155 +          <article class="card">
+    156 +            <h3>Convenciones Clave</h3>
+    157 +            <ul>
+    158 +              <li>Código en <code>src/</code> con una API pública clara
+          por módulo.</li>
+    159 +              <li>Pruebas espejo en <code>tests/unit/</code> y <code>te
+         sts/integration/</code>.</li>
+    160 +              <li>Formato consistente con la herramienta que definas (e
+         j. <code>ruff</code>, <code>black</code>).</li>
+    161 +            </ul>
+    162 +          </article>
+    163 +          <article class="card">
+    164 +            <h3>Comandos Esperados</h3>
+    165 +            <ul>
+    166 +              <li><code>make install</code>: instala dependencias.</li>
+    167 +              <li><code>make fmt</code>: aplica formateo automático.</l
+         i>
+    168 +              <li><code>make lint</code>: ejecuta controles estáticos.<
+         /li>
+    169 +              <li><code>make test</code>: corre la suite de pruebas.</l
+         i>
+    170 +            </ul>
+    171 +          </article>
+    172 +        </div>
+    173 +      </section>
+    174 +
+    175 +      <footer>
+    176 +        <p>Última actualización: <time datetime="2024-10-09">9 de octub
+         re de 2024</time>.</p>
+    177 +      </footer>
+    178 +    </main>
+    179 +  </body>
+    180 +</html>
