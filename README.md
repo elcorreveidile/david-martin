@@ -18,15 +18,25 @@ Esta base te permite empezar a programar desde el primer momento: puedes conecta
 
 1. **Crear un entorno virtual (opcional, pero recomendado)**
 
+   Antes de comenzar, comprueba qué intérprete tienes disponible:
+
    ```bash
-   python -m venv .venv
+   python --version  # o python3 --version en macOS/Linux
+   ```
+
+   Si `python` no existe en tu sistema, sustituye todos los comandos por `python3`. Una vez identificado el binario correcto, crea y activa el entorno virtual:
+
+   ```bash
+   python -m venv .venv   # usa python3 -m venv .venv si es necesario
    source .venv/bin/activate  # En Windows usa .venv\Scripts\activate
    ```
 
 2. **Instalar las dependencias mínimas**
 
+   Ejecuta la instalación con el mismo intérprete que usaste para crear el entorno virtual. Esto evita errores como `command not found: pip` en macOS o distribuciones donde `pip` no esté en el PATH por defecto:
+
    ```bash
-   pip install -r requirements.txt
+   python -m pip install -r requirements.txt
    ```
 
 3. **Ejecutar la batería de pruebas automatizadas**
