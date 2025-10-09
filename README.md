@@ -51,6 +51,7 @@ print(system.chat("¿Cuánto cuesta un degradado?"))
 
 ## Documentación
 - [Plan de Arquitectura](docs/architecture.md)
+- [Paso a paso para construir la web de reservas](docs/web_build_steps.md)
 
 ### Integración de reseñas en Google Maps
 
